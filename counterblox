@@ -832,7 +832,7 @@ local function getCurrentWeaponCategory()
 	end
 	return weaponToCategory[result] or "Global";
 end
-local SilentAimSettings = {Enabled=false,ClassName="Universal Silent Aim - Averiias, Stefanuk12, xaxa",ToggleKey="RightAlt",TeamCheck=false,VisibleCheck=false,TargetPart="HumanoidRootPart",SilentAimMethod="FindPartOnRayWithIgnoreList",FOVRadius=400,FOVVisible=false,ShowSilentAimTarget=false,MouseHitPrediction=false,MouseHitPredictionAmount=0.165,HitChance=100};
+local SilentAimSettings = {Enabled=false,ClassName="owned by pidorasi",ToggleKey="RightAlt",TeamCheck=false,VisibleCheck=false,TargetPart="HumanoidRootPart",SilentAimMethod="Raycast",FOVRadius=400,FOVVisible=false,ShowSilentAimTarget=false,MouseHitPrediction=false,MouseHitPredictionAmount=0.165,HitChance=100};
 getgenv().SilentAimSettings = Settings;
 local ValidTargetParts = {"Head","HumanoidRootPart"};
 local PredictionAmount = 0.165;
@@ -899,7 +899,7 @@ br_fov_circle_fill.Visible = false;
 br_fov_circle_fill.ZIndex = 8;
 br_fov_circle_fill.Transparency = 0.8;
 br_fov_circle_fill.Color = C3(255, 255, 255);
-local ExpectedArguments = {FindPartOnRayWithIgnoreList={ArgCountRequired=3,Args={"Instance","Ray","table","boolean","boolean"}}};
+local ExpectedArguments = {Raycast={ArgCountRequired=3,Args={"Instance", "Vector3", "Vector3", "RaycastParams"}}};
 function CalculateChance(Percentage)
 	Percentage = math.floor(Percentage);
 	local chance = math.floor(Random.new().NextNumber(Random.new(), 0, 1) * 100) / 100;
@@ -2908,36 +2908,71 @@ function CreateBulletImpact(pos)
 	end)();
 end
 local meta = getrawmetatable(game);
-local OldNameCall = nil;
-local oldNewindex = meta.__newindex;
-local oldIndex = meta.__index;
-local old = meta.__namecall;
-local oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
-	if checkcaller() then
-		return oldNamecall(...);
-	end
-	local Method = getnamecallmethod();
-	local Arguments = {...};
-	local self = Arguments[1];
-	if (Toggles.aim_Enabled.Value and (self == workspace) and not checkcaller()) then
-		local chance = CalculateChance(weaponCategorySettings[getCurrentWeaponCategory()].HitChance or 100);
-		if ((Method == "FindPartOnRayWithIgnoreList") and (SilentAimSettings.SilentAimMethod == Method)) then
-			if ValidateArguments(Arguments, ExpectedArguments.FindPartOnRayWithIgnoreList) then
-				local A_Ray = Arguments[2];
-				local HitPart = getClosestPlayer();
-				if (HitPart and chance) then
-					lastHitPart = HitPart;
-					lastHitPartForLog = HitPart;
-					local Origin = A_Ray.Origin;
-					local Direction = getDirection(Origin, HitPart.Position);
-					Arguments[2] = Ray.new(Origin, Direction);
-					return oldNamecall(table.unpack(Arguments, 1, #Arguments));
-				end
-			end
-		end
-	end
-	return oldNamecall(...);
-end));
+local oldNamecall 
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...) -- ДАДАДААДАДДАДА ПАСТА ЮНИВЕРСАЛ САЙЛЕНТ АИМА ПИДОРАСС *ЭМОДЗИ ОГОНЬКА*****
+    local args = {...}
+    local self = args[1]
+    local method = getnamecallmethod()
+    
+    local aimEnabled = false
+    pcall(function()
+        if Toggles and Toggles.aim_Enabled then
+            aimEnabled = Toggles.aim_Enabled.Value
+        end
+    end)
+    
+    if aimEnabled and self == workspace and not checkcaller() then
+        
+        if method == "Raycast" then
+            local target = getClosestPlayer()
+            if target and target.Position then
+                local origin = args[2]
+                if typeof(origin) == "Vector3" then
+                    args[3] = (target.Position - origin).Unit * 1000
+                    return oldNamecall(unpack(args))
+                end
+            end
+        end
+        
+        if method == "FindPartOnRay" or method == "findPartOnRay" then
+            local target = getClosestPlayer()
+            if target and target.Position then
+                local ray = args[2]
+                if ray and ray.Origin then
+                    local newRay = Ray.new(ray.Origin, (target.Position - ray.Origin).Unit * 1000)
+                    args[2] = newRay
+                    return oldNamecall(unpack(args))
+                end
+            end
+        end
+        
+        if method == "FindPartOnRayWithIgnoreList" then
+            local target = getClosestPlayer()
+            if target and target.Position then
+                local ray = args[2]
+                if ray and ray.Origin then
+                    local newRay = Ray.new(ray.Origin, (target.Position - ray.Origin).Unit * 1000)
+                    args[2] = newRay
+                    return oldNamecall(unpack(args))
+                end
+            end
+        end
+        
+        if method == "FindPartOnRayWithWhitelist" then
+            local target = getClosestPlayer()
+            if target and target.Position then
+                local ray = args[2]
+                if ray and ray.Origin then
+                    local newRay = Ray.new(ray.Origin, (target.Position - ray.Origin).Unit * 1000)
+                    args[2] = newRay
+                    return oldNamecall(unpack(args))
+                end
+            end
+        end
+    end
+    
+    return oldNamecall(...)
+end))
 spawn(function()
 	while true do
 		wait(0.05);
